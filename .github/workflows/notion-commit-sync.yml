@@ -1,0 +1,49 @@
+name: Sync commits to Notion
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATA_SOURCE_ID: ${{ secrets.NOTION_DATA_SOURCE_ID }}
+        with:
+          script: |
+            const commits = context.payload.commits || [];
+            const branch = context.ref.replace('refs/heads/', '');
+
+            for (const c of commits) {
+              const res = await fetch('https://api.notion.com/v1/pages', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${process.env.NOTION_TOKEN}`,
+                  'Notion-Version': '2025-09-03',
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  parent: {
+                    type: 'data_source_id',
+                    data_source_id: process.env.NOTION_DATA_SOURCE_ID
+                  },
+                  properties: {
+                    'Message':      { title: [{ text: { content: c.message.split('\n')[0].slice(0, 2000) } }] },
+                    'SHA':          { rich_text: [{ text: { content: c.id.slice(0, 7) } }] },
+                    'Author':       { rich_text: [{ text: { content: c.author.name ?? '' } }] },
+                    'URL':          { url: c.url },
+                    'Committed At': { date: { start: c.timestamp } },
+                    'Branch':       { rich_text: [{ text: { content: branch } }] }
+                  }
+                })
+              });
+
+              if (!res.ok) {
+                core.setFailed(`Notion API ${res.status}: ${await res.text()}`);
+                return;
+              }
+              core.info(`Synced ${c.id.slice(0, 7)}`);
+            }
