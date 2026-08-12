@@ -1,21 +1,13 @@
 import 'package:cli/cli.dart' as cli;
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:command_runner/command_runner.dart';
 
 const version = '0.0.1';
 
-void main(List<String> arguments) {
-  if (arguments.isEmpty || arguments.first == 'help') {
-    printUsage();
-  } else if (arguments.first == 'version') {
-    print('Dartpedia CLI version $version');
-  } else if (arguments.first == 'wikipedia') {
-    // arguments.sublist(1): 첫번째 요소 이후 요소를 포함한 새 리스트 생성
-    final inputArgs = arguments.length > 1 ? arguments.sublist(1) : null;
-    searchWikipedia(inputArgs);
-  } else {
-    printUsage();
-  }
+void main(List<String> arguments) async {
+  var runner = CommandRunner();
+  await runner.run(arguments);
 }
 
 // Future<String> 타입: String 비동기 작업으로 미래에 결과를 생성할 것임을 나타냄
